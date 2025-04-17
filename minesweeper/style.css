@@ -1,0 +1,43 @@
+body {
+    background-color: rgb(40, 40, 40);
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+}
+
+#game-board {
+    display: grid;
+    grid-template-columns: repeat(10, 30px);
+    grid-template-rows: repeat(10, 30px);
+    gap: 2px;
+    justify-content: center;
+    margin: 20px auto;
+}
+
+.cell {
+    width: 30px;
+    height: 30px;
+    background-color: #888;
+    border: 1px solid #555;
+    text-align: center;
+    line-height: 30px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.cell.revealed {
+    background-color: #ccc;
+    cursor: default;
+}
+
+.cell.mine {
+    background-color: red;
+    color: white;
+}
+
+.cell.flagged {
+    background-color: #f0ad4e; /* Orange background for flagged cells */
+    color: white;
+}

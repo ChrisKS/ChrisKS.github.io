@@ -1,9 +1,13 @@
 const cells = document.querySelectorAll('.cell');
 const statusText = document.getElementById('status');
 const resetButton = document.getElementById('reset');
+const scoreXText = document.getElementById('score-x');
+const scoreOText = document.getElementById('score-o');
 let currentPlayer = 'X';
 let board = ['', '', '', '', '', '', '', '', ''];
 let gameActive = true;
+let scoreX = 0;
+let scoreO = 0;
 
 const winningConditions = [
     [0, 1, 2],
@@ -28,6 +32,7 @@ function handleCellClick(event) {
 
     if (checkWin()) {
         statusText.textContent = `Player ${currentPlayer} wins!`;
+        updateScore(currentPlayer);
         gameActive = false;
     } else if (board.every(cell => cell !== '')) {
         statusText.textContent = 'It\'s a draw!';
@@ -42,6 +47,16 @@ function checkWin() {
     return winningConditions.some(condition => {
         return condition.every(index => board[index] === currentPlayer);
     });
+}
+
+function updateScore(player) {
+    if (player === 'X') {
+        scoreX++;
+        scoreXText.textContent = scoreX;
+    } else if (player === 'O') {
+        scoreO++;
+        scoreOText.textContent = scoreO;
+    }
 }
 
 function resetGame() {

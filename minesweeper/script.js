@@ -1,5 +1,7 @@
-const boardSize = 10;
-const mineCount = 20;
+const minBoardSize = 5;
+const maxBoardSize = 30;
+let boardSize = 10;
+let mineCount = 20;
 let board = [];
 let gameActive = true;
 let firstClick = true;
@@ -7,6 +9,24 @@ let firstClick = true;
 const gameBoard = document.getElementById('game-board');
 const statusText = document.getElementById('status');
 const resetButton = document.getElementById('reset');
+const boardSizeInput = document.getElementById('board-size');
+const mineCountInput = document.getElementById('mine-count');
+const applySettingsButton = document.getElementById('apply-settings');
+const flagsPlacedText = document.getElementById('flags-placed');
+const totalBombsText = document.getElementById('total-bombs');
+
+applySettingsButton.addEventListener('click', () => {
+    const newBoardSize = parseInt(boardSizeInput.value);
+    const newMineCount = parseInt(mineCountInput.value);
+
+    if (newBoardSize >= minBoardSize && newBoardSize <= maxBoardSize && newMineCount >= 1 && newMineCount < newBoardSize * newBoardSize) {
+        boardSize = newBoardSize;
+        mineCount = newMineCount;
+        resetGame();
+    } else {
+        alert(`Invalid board size or mine count. Please adjust the values. Board size must be between ${minBoardSize} and ${maxBoardSize}, and mine count must be at least 1 and less than total cells.`);
+    }
+});
 
 function createBoard(excludeRow, excludeCol) {
     // Initialize an empty board
@@ -275,6 +295,11 @@ function handleRightClick(event) {
     if (board[row][col].revealed) return; // Ignore revealed cells
 
     board[row][col].flagged = !board[row][col].flagged; // Toggle flagged state
+
+    // Update the flag counter
+    const flagsPlaced = board.flat().filter(cell => cell.flagged).length;
+    flagsPlacedText.textContent = flagsPlaced;
+
     renderBoard(); // Re-render the board to show the flag
 }
 
@@ -325,14 +350,23 @@ function resetGame() {
     firstClick = true;
     statusText.textContent = 'Game in progress...';
 
+    // Initialize the flag counter
+    flagsPlacedText.textContent = '0';
+    totalBombsText.textContent = mineCount;
+
     // Initialize an empty board
     board = Array.from({ length: boardSize }, () =>
         Array.from({ length: boardSize }, () => ({
             mine: false,
             revealed: false,
+            flagged: false,
             adjacentMines: 0
         }))
     );
+
+    // Update the game board grid size
+    gameBoard.style.gridTemplateColumns = `repeat(${boardSize}, 30px)`;
+    gameBoard.style.gridTemplateRows = `repeat(${boardSize}, 30px)`;
 
     renderBoard(); // Render the empty board
 }

@@ -8,7 +8,17 @@
 </head>
 <body>
     <h1>Minesweeper</h1>
+    <div id="settings">
+        <label for="board-size">Board Size:</label>
+        <input type="number" id="board-size" value="10" min="5" max="30">
+        <label for="mine-count">Mine Count:</label>
+        <input type="number" id="mine-count" value="20" min="1">
+        <button id="apply-settings">Apply Settings</button>
+    </div>
     <div id="game-board"></div>
+    <div id="flag-counter">
+        Flags: <span id="flags-placed">0</span> / <span id="total-bombs">20</span>
+    </div>
     <p id="status"></p>
     <button id="reset">Reset Game</button>
     <br>

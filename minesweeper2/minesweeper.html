@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minesweeper</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:     #c0c0c0;
+    --light:  #ffffff;
+    --dark:   #808080;
+    --shadow: #404040;
+    --lcd-bg: #200000;
+    --lcd-fg: #ff0000;
+    --cell:   32px;
+  }
+
+  body {
+    background: #1a1a2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'VT323', 'Courier New', monospace;
+    padding: 20px;
+    user-select: none;
+  }
+
+  h1 {
+    color: #00ff88;
+    font-size: 2rem;
+    letter-spacing: 10px;
+    margin-bottom: 14px;
+    text-shadow: 0 0 24px #00ff8855;
+    font-family: 'VT323', monospace;
+  }
+
+  /* Difficulty bar */
+  #diff-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  #diff-bar button {
+    padding: 4px 14px;
+    background: transparent;
+    color: #00ff88;
+    border: 1px solid #00ff88;
+    cursor: pointer;
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    border-radius: 2px;
+    transition: background .12s, color .12s;
+  }
+  #diff-bar button.active,
+  #diff-bar button:hover {
+    background: #00ff88;
+    color: #1a1a2e;
+  }
+
+  /* Outer window panel */
+  #panel {
+    background: var(--bg);
+    border: 3px solid;
+    border-color: var(--light) var(--shadow) var(--shadow) var(--light);
+    padding: 8px;
+    box-shadow: 0 10px 50px #00000099;
+  }
+
+  /* Header strip */
+  #header {
+    background: var(--bg);
+    border: 2px solid;
+    border-color: var(--shadow) var(--light) var(--light) var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
+  /* LCD display */
+  .lcd {
+    background: var(--lcd-bg);
+    color: var(--lcd-fg);
+    font-family: 'VT323', 'Courier New', monospace;
+    font-size: 1.6rem;
+    letter-spacing: 3px;
+    padding: 2px 6px;
+    min-width: 54px;
+    text-align: center;
+    border: 1px solid #600;
+    border-top-color: #400;
+    border-left-color: #400;
+    text-shadow: 0 0 8px #ff000077;
+  }
+
+  /* Header buttons group */
+  #header-btns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .win95-btn {
+    background: var(--bg);
+    border: 2px solid;
+    border-color: var(--light) var(--shadow) var(--shadow) var(--light);
+    cursor: pointer;
+    font-family: 'VT323', monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color .05s;
+  }
+  .win95-btn:active,
+  .win95-btn.pressed {
+    border-color: var(--shadow) var(--light) var(--light) var(--shadow);
+  }
+
+  #face-btn {
+    width: 36px; height: 36px;
+    font-size: 1.3rem;
+  }
+
+  #hint-btn {
+    width: 30px; height: 26px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #888;
+  }
+  #hint-btn.active {
+    background: #ffffb4;
+    color: #b48a00;
+  }
+  #hint-btn.stage1 { box-shadow: 0 0 6px 2px rgba(0,200,80,.5); }
+  #hint-btn.stage2 { box-shadow: 0 0 6px 2px rgba(255,160,0,.5); }
+
+  /* Legend */
+  #hint-legend {
+    font-size: .75rem;
+    line-height: 1.4;
+    text-align: right;
+    color: #555;
+    min-width: 52px;
+  }
+  #hint-legend .leg-safe { color: #00c850; }
+  #hint-legend .leg-mine { color: #ffa000; }
+
+  /* Board */
+  #board-wrap {
+    border: 3px solid;
+    border-color: var(--shadow) var(--light) var(--light) var(--shadow);
+    display: inline-block;
+    line-height: 0;
+  }
+
+  #board {
+    display: grid;
+    /* columns set dynamically */
+  }
+
+  /* Cells */
+  .cell {
+    width: var(--cell);
+    height: var(--cell);
+    background: var(--bg);
+    border: 2px solid;
+    border-color: var(--light) var(--shadow) var(--shadow) var(--light);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'VT323', monospace;
+    font-size: 1.1rem;
+    font-weight: bold;
+    position: relative;
+    overflow: hidden;
+  }
+  .cell.revealed {
+    border: 1px solid var(--dark);
+    cursor: default;
+    background: var(--bg);
+  }
+  .cell.exploded { background: #ff0000 !important; }
+
+  /* Number colours */
+  .n1 { color: #0000dc; }
+  .n2 { color: #008c00; }
+  .n3 { color: #dc0000; }
+  .n4 { color: #000080; }
+  .n5 { color: #800000; }
+  .n6 { color: #008080; }
+  .n7 { color: #000000; }
+  .n8 { color: #808080; }
+
+  /* Hint overlays */
+  .hint-safe::after,
+  .hint-mine::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    animation: hint-pulse 0.55s ease-in-out infinite alternate;
+  }
+  .hint-safe::after {
+    background: rgba(0,200,80, 0.55);
+    box-shadow: inset 0 0 0 2px #00c850;
+  }
+  .hint-mine::after {
+    background: rgba(255,160,0, 0.55);
+    box-shadow: inset 0 0 0 2px #ffa000;
+  }
+  @keyframes hint-pulse {
+    from { opacity: .55; }
+    to   { opacity: 1;   }
+  }
+
+  /* Mine SVG */
+  .mine-svg { width: 18px; height: 18px; }
+
+  /* Flag */
+  .flag-svg { width: 18px; height: 18px; }
+
+  /* Generating overlay */
+  #gen-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  #gen-overlay.show { display: flex; }
+  #gen-overlay span {
+    background: #404040;
+    color: #c0c0c0;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    padding: 10px 24px;
+  }
+
+  /* Win/lose message */
+  #status-msg {
+    margin-top: 14px;
+    font-size: 1.2rem;
+    letter-spacing: 4px;
+    font-family: 'VT323', monospace;
+    min-height: 1.6em;
+    text-align: center;
+  }
+  #status-msg.won  { color: #00ff88; text-shadow: 0 0 16px #00ff8866; animation: blink 1.4s ease-in-out infinite; }
+  #status-msg.lost { color: #ff4466; text-shadow: 0 0 16px #ff446666; animation: blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+</style>
+</head>
+<body>
+
+<h1>◆ MINESWEEPER ◆</h1>
+
+<div id="diff-bar">
+  <button data-diff="beginner"     class="active">BEGINNER</button>
+  <button data-diff="intermediate"          >INTERMEDIATE</button>
+  <button data-diff="expert"                >EXPERT</button>
+</div>
+
+<div id="panel">
+  <div id="header">
+    <div class="lcd" id="lcd-mines">010</div>
+
+    <div id="header-btns">
+      <button class="win95-btn" id="face-btn" title="New game">:)</button>
+      <button class="win95-btn" id="hint-btn" title="Hint">?</button>
+      <div id="hint-legend"></div>
+    </div>
+
+    <div class="lcd" id="lcd-time">000</div>
+  </div>
+
+  <div id="board-wrap">
+    <div id="board"></div>
+  </div>
+</div>
+
+<div id="status-msg"></div>
+<div id="gen-overlay"><span>Generating solvable board…</span></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const DIFFICULTIES = {
+  beginner:     { rows:  9, cols:  9, mines: 10 },
+  intermediate: { rows: 16, cols: 16, mines: 40 },
+  expert:       { rows: 16, cols: 30, mines: 99 },
+};
+const HINT_DURATION = 3000; // ms
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let diff       = 'beginner';
+let rows, cols, mines;
+let grid;          // 2d array of { mine, revealed, flagged, count }
+let generated;
+let gameState;     // 'idle' | 'playing' | 'won' | 'lost'
+let startTime, elapsed, timerInterval;
+let exploded;
+let hintSafe, hintMines, hintUntil, hintStage;
+let hintAllSafe, hintAllMines;
+
+// ── Solver ────────────────────────────────────────────────────────────────────
+function neighbours(r, c) {
+  const res = [];
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++)
+      if ((dr || dc) && r+dr >= 0 && r+dr < rows && c+dc >= 0 && c+dc < cols)
+        res.push([r+dr, c+dc]);
+  return res;
+}
+
+function buildConstraints(rev, flag) {
+  const constraints = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (!rev[r][c] || grid[r][c].mine) continue;
+      const nb = neighbours(r, c);
+      const unknowns = nb.filter(([nr,nc]) => !rev[nr][nc] && !flag[nr][nc]);
+      const flagCount = nb.filter(([nr,nc]) => flag[nr][nc]).length;
+      const remaining = grid[r][c].count - flagCount;
+      if (unknowns.length > 0)
+        constraints.push({ unknowns, remaining });
+    }
+  }
+  return constraints;
+}
+
+// Sets represented as sorted "r,c" strings for easy subset checks
+function cellKey(r, c) { return r + ',' + c; }
+function setFromCells(cells) { return new Set(cells.map(([r,c]) => cellKey(r,c))); }
+function isSubset(a, b) { for (const x of a) if (!b.has(x)) return false; return true; }
+function setDiff(a, b) { return new Set([...a].filter(x => !b.has(x))); }
+
+function oneSolverStep(rev, flag) {
+  const safe = new Set(), mine = new Set();
+  const constraints = buildConstraints(rev, flag);
+  const cSets = constraints.map(c => ({ s: setFromCells(c.unknowns), m: c.remaining }));
+
+  // Pass 1 – simple
+  for (const { s, m } of cSets) {
+    if (m === 0) s.forEach(k => safe.add(k));
+    else if (m === s.size) s.forEach(k => mine.add(k));
+  }
+
+  // Pass 2 – subset
+  for (let i = 0; i < cSets.length; i++) {
+    for (let j = 0; j < cSets.length; j++) {
+      if (i === j) continue;
+      const { s: sa, m: ma } = cSets[i];
+      const { s: sb, m: mb } = cSets[j];
+      if (sa.size < sb.size && isSubset(sa, sb)) {
+        const diff = setDiff(sb, sa);
+        const dm   = mb - ma;
+        if (dm === 0) diff.forEach(k => safe.add(k));
+        else if (dm === diff.size) diff.forEach(k => mine.add(k));
+      }
+    }
+  }
+
+  // Filter already known
+  const toCell = k => k.split(',').map(Number);
+  const filterKnown = s => new Set([...s].filter(k => {
+    const [r,c] = toCell(k);
+    return !rev[r][c] && !flag[r][c];
+  }));
+  return { safe: filterKnown(safe), mine: filterKnown(mine) };
+}
+
+function isSolvable(startR, startC) {
+  const rev  = Array.from({length: rows}, () => Array(cols).fill(false));
+  const flag = Array.from({length: rows}, () => Array(cols).fill(false));
+
+  function flood(r, c) {
+    if (rev[r][c] || flag[r][c]) return;
+    rev[r][c] = true;
+    if (grid[r][c].count === 0)
+      for (const [nr,nc] of neighbours(r, c)) flood(nr, nc);
+  }
+  flood(startR, startC);
+
+  const totalSafe = rows * cols - mines;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const { safe, mine } = oneSolverStep(rev, flag);
+    for (const k of safe) {
+      const [r,c] = k.split(',').map(Number);
+      if (!rev[r][c]) { flood(r, c); changed = true; }
+    }
+    for (const k of mine) {
+      const [r,c] = k.split(',').map(Number);
+      if (!flag[r][c]) { flag[r][c] = true; changed = true; }
+    }
+  }
+  return rev.flat().filter((v,i) => v && !grid[Math.floor(i/cols)][i%cols].mine).length === totalSafe;
+}
+
+function getHints() {
+  const rev  = grid.map(row => row.map(c => c.revealed));
+  const flag = grid.map(row => row.map(c => c.flagged));
+  return oneSolverStep(rev, flag);
+}
+
+// ── Board generation ──────────────────────────────────────────────────────────
+function placeMines(safeR, safeC) {
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      grid[r][c] = { mine: false, revealed: false, flagged: false, count: 0 };
+
+  let placed = 0;
+  while (placed < mines) {
+    const r = Math.floor(Math.random() * rows);
+    const c = Math.floor(Math.random() * cols);
+    if (grid[r][c].mine) continue;
+    if (Math.abs(r - safeR) <= 1 && Math.abs(c - safeC) <= 1) continue;
+    grid[r][c].mine = true;
+    placed++;
+  }
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      if (!grid[r][c].mine)
+        grid[r][c].count = neighbours(r, c).filter(([nr,nc]) => grid[nr][nc].mine).length;
+}
+
+function generateBoard(safeR, safeC) {
+  let attempts = 0;
+  do { placeMines(safeR, safeC); attempts++; } while (!isSolvable(safeR, safeC));
+  generated = true;
+}
+
+// ── Reveal / flood ────────────────────────────────────────────────────────────
+function reveal(r, c) {
+  const cell = grid[r][c];
+  if (cell.revealed || cell.flagged) return;
+  cell.revealed = true;
+  if (cell.count === 0 && !cell.mine)
+    for (const [nr,nc] of neighbours(r, c)) reveal(nr, nc);
+}
+
+function chordReveal(r, c) {
+  const cell = grid[r][c];
+  if (!cell.revealed || cell.count === 0) return false;
+  const nb = neighbours(r, c);
+  if (nb.filter(([nr,nc]) => grid[nr][nc].flagged).length !== cell.count) return false;
+  for (const [nr,nc] of nb) {
+    const n = grid[nr][nc];
+    if (!n.flagged && !n.revealed) {
+      if (n.mine) { n.revealed = true; return [nr, nc]; }
+      reveal(nr, nc);
+    }
+  }
+  return false;
+}
+
+// ── Win check ─────────────────────────────────────────────────────────────────
+function safeRevealed() {
+  return grid.flat().filter(c => c.revealed && !c.mine).length;
+}
+function checkWin() {
+  return safeRevealed() === rows * cols - mines;
+}
+
+// ── Timer ─────────────────────────────────────────────────────────────────────
+function startTimer() {
+  startTime = Date.now();
+  timerInterval = setInterval(() => {
+    elapsed = Math.min(999, Math.floor((Date.now() - startTime) / 1000));
+    renderHeader();
+  }, 500);
+}
+function stopTimer() { clearInterval(timerInterval); }
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+const MINE_SVG = `<svg class="mine-svg" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="10" cy="10" r="6" fill="#000"/>
+  ${[0,45,90,135,180,225,270,315].map(a => {
+    const rad = a * Math.PI / 180;
+    return `<line x1="10" y1="10" x2="${(10+Math.cos(rad)*10).toFixed(1)}" y2="${(10+Math.sin(rad)*10).toFixed(1)}" stroke="#000" stroke-width="2"/>`;
+  }).join('')}
+  <circle cx="7.5" cy="7.5" r="1.8" fill="#fff"/>
+</svg>`;
+
+const FLAG_SVG = `<svg class="flag-svg" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <line x1="10" y1="2" x2="10" y2="18" stroke="#000" stroke-width="2"/>
+  <polygon points="10,2 19,7 10,12" fill="#ff0000"/>
+</svg>`;
+
+function lcdStr(n, digits = 3) {
+  const v = Math.max(-99, Math.min(999, n));
+  return (v < 0 ? '-' + String(Math.abs(v)).padStart(digits-1,'0') : String(v).padStart(digits,'0')).slice(-digits);
+}
+
+function renderHeader() {
+  document.getElementById('lcd-mines').textContent = lcdStr(mines - grid.flat().filter(c=>c.flagged).length);
+  document.getElementById('lcd-time').textContent  = lcdStr(elapsed);
+  const face = document.getElementById('face-btn');
+  face.textContent = gameState === 'won' ? '8)' : gameState === 'lost' ? 'X(' : ':)';
+
+  const hintBtn = document.getElementById('hint-btn');
+  hintBtn.className = 'win95-btn';
+  if (gameState === 'playing') {
+    hintBtn.classList.add('active');
+    if (hintStage === 1) hintBtn.classList.add('stage1');
+    if (hintStage === 2) hintBtn.classList.add('stage2');
+  }
+
+  const now = Date.now();
+  const legend = document.getElementById('hint-legend');
+  if (now < hintUntil && (hintSafe.size || hintMines.size)) {
+    legend.innerHTML =
+      (hintSafe.size  ? `<div class="leg-safe">■ safe</div>`  : '') +
+      (hintMines.size ? `<div class="leg-mine">■ mine</div>` : '');
+  } else {
+    legend.innerHTML = '';
+  }
+}
+
+function renderBoard() {
+  const board  = document.getElementById('board');
+  const now    = Date.now();
+  const hintsOn = now < hintUntil;
+
+  board.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+  board.innerHTML = '';
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell  = grid[r][c];
+      const key   = cellKey(r, c);
+      const div   = document.createElement('div');
+      div.className = 'cell';
+      div.dataset.r = r;
+      div.dataset.c = c;
+
+      if (cell.revealed) {
+        div.classList.add('revealed');
+        if (cell.mine) {
+          div.innerHTML = MINE_SVG;
+          if (exploded && exploded[0] === r && exploded[1] === c)
+            div.classList.add('exploded');
+        } else if (cell.count > 0) {
+          div.classList.add('n' + cell.count);
+          div.textContent = cell.count;
+        }
+      } else {
+        if (cell.flagged) {
+          div.innerHTML = FLAG_SVG;
+        } else if (gameState === 'lost' && cell.mine) {
+          div.innerHTML = MINE_SVG;
+        }
+        // Hint overlay
+        if (hintsOn && !cell.flagged) {
+          if (hintSafe.has(key))  div.classList.add('hint-safe');
+          if (hintMines.has(key)) div.classList.add('hint-mine');
+        }
+      }
+
+      board.appendChild(div);
+    }
+  }
+}
+
+function render() {
+  renderHeader();
+  renderBoard();
+}
+
+// ── Hint logic ────────────────────────────────────────────────────────────────
+function showHint() {
+  if (gameState !== 'playing') return;
+
+  // Second click while hints visible → show all
+  if (hintStage === 1 && Date.now() < hintUntil) {
+    hintSafe  = hintAllSafe;
+    hintMines = hintAllMines;
+    hintUntil = Date.now() + HINT_DURATION;
+    hintStage = 2;
+    render();
+    return;
+  }
+
+  // First click – compute full set, pick one
+  const { safe, mine } = getHints();
+  hintAllSafe  = safe;
+  hintAllMines = mine;
+  const all = [...safe, ...mine];
+  if (!all.length) return;
+  const pick = all[Math.floor(Math.random() * all.length)];
+  hintSafe  = safe.has(pick)  ? new Set([pick]) : new Set();
+  hintMines = mine.has(pick)  ? new Set([pick]) : new Set();
+  hintUntil = Date.now() + HINT_DURATION;
+  hintStage = 1;
+  render();
+
+  // Auto-expire
+  setTimeout(() => {
+    if (hintStage !== 0) { hintStage = 0; hintSafe = new Set(); hintMines = new Set(); render(); }
+  }, HINT_DURATION + 50);
+}
+
+function clearHints() {
+  hintSafe = new Set(); hintMines = new Set();
+  hintUntil = 0; hintStage = 0;
+}
+
+// ── Init / reset ──────────────────────────────────────────────────────────────
+function initGame(d) {
+  if (d) diff = d;
+  const cfg = DIFFICULTIES[diff];
+  rows = cfg.rows; cols = cfg.cols; mines = cfg.mines;
+  grid = Array.from({length: rows}, () =>
+    Array.from({length: cols}, () => ({ mine:false, revealed:false, flagged:false, count:0 }))
+  );
+  generated = false;
+  gameState = 'idle';
+  elapsed   = 0;
+  exploded  = null;
+  stopTimer();
+  clearHints();
+  document.getElementById('status-msg').textContent = '';
+  document.getElementById('status-msg').className   = '';
+  render();
+}
+
+// ── Event handlers ────────────────────────────────────────────────────────────
+document.getElementById('face-btn').addEventListener('click', () => initGame());
+document.getElementById('hint-btn').addEventListener('click', showHint);
+
+document.querySelectorAll('#diff-bar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#diff-bar button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    initGame(btn.dataset.diff);
+  });
+});
+
+document.getElementById('board').addEventListener('click', e => {
+  const div = e.target.closest('.cell');
+  if (!div) return;
+  handleLeft(+div.dataset.r, +div.dataset.c);
+});
+
+document.getElementById('board').addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const div = e.target.closest('.cell');
+  if (!div) return;
+  handleRight(+div.dataset.r, +div.dataset.c);
+});
+
+function handleLeft(r, c) {
+  if (gameState === 'won' || gameState === 'lost') return;
+
+  clearHints();
+  const cell = grid[r][c];
+  if (cell.flagged) return;
+
+  // Chord on revealed numbered cell
+  if (cell.revealed && cell.count > 0) {
+    const hit = chordReveal(r, c);
+    if (hit) {
+      exploded = hit;
+      gameState = 'lost';
+      stopTimer();
+      elapsed = Math.floor((Date.now() - startTime) / 1000);
+      showLost();
+    } else if (checkWin()) {
+      gameState = 'won';
+      stopTimer();
+      showWon();
+    }
+    render(); return;
+  }
+
+  if (cell.revealed) return;
+
+  // First click
+  if (!generated) {
+    document.getElementById('gen-overlay').classList.add('show');
+    // yield to browser to show overlay, then generate synchronously
+    setTimeout(() => {
+      generateBoard(r, c);
+      document.getElementById('gen-overlay').classList.remove('show');
+      startTimer();
+      gameState = 'playing';
+      reveal(r, c);
+      if (checkWin()) { gameState = 'won'; stopTimer(); showWon(); }
+      render();
+    }, 30);
+    return;
+  }
+
+  if (cell.mine) {
+    cell.revealed = true;
+    exploded = [r, c];
+    gameState = 'lost';
+    stopTimer();
+    elapsed = Math.floor((Date.now() - startTime) / 1000);
+    showLost();
+  } else {
+    reveal(r, c);
+    if (checkWin()) { gameState = 'won'; stopTimer(); showWon(); }
+  }
+  render();
+}
+
+function handleRight(r, c) {
+  if (gameState === 'won' || gameState === 'lost') return;
+  if (gameState === 'idle') return;
+  clearHints();
+  const cell = grid[r][c];
+  if (!cell.revealed) {
+    cell.flagged = !cell.flagged;
+    render();
+  }
+}
+
+function showWon() {
+  const msg = document.getElementById('status-msg');
+  msg.textContent = `◆ YOU WIN!  ${elapsed}s ◆`;
+  msg.className = 'won';
+}
+function showLost() {
+  const msg = document.getElementById('status-msg');
+  msg.textContent = '◆ GAME OVER ◆';
+  msg.className = 'lost';
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+initGame();
+</script>
+</body>
+</html>
